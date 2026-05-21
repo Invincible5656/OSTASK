@@ -4,7 +4,7 @@
 
 本项目面向操作系统课程设计，目标是在 Linux 环境下使用 C 语言实现一个用户级线程库。线程库需要在用户态完成线程创建、线程让步、线程退出、线程调度、线程删除、线程信息查看和优先级设置。
 
-推荐主线方案：
+主线方案：
 
 ```text
 C 语言
@@ -15,14 +15,14 @@ C 语言
 + 测试程序和课程报告
 ```
 
-你的开发方式建议为：
+开发方式为：
 
 ```text
 Mac + VSCode：写代码、整理文档、远程连接服务器
 腾讯云 Linux：编译、运行、调试、截图、最终验收
 ```
 
-注意：`ucontext` 在 macOS 上支持情况不稳定，本项目最终运行环境应统一放在腾讯云 Linux 上。
+注意：本项目最终运行环境应统一放在腾讯云 Linux 上。
 
 ## 2. 必须完成的功能
 
@@ -53,9 +53,9 @@ Mac + VSCode：写代码、整理文档、远程连接服务器
 
 实现中可以额外维护 `exited` 状态，方便处理线程退出和资源回收。
 
-## 3. 推荐工程结构
+## 3. 工程结构
 
-建议项目目录命名为 `uthread-project`：
+项目目录命名为 `uthread-project`：
 
 ```text
 uthread-project/
@@ -96,7 +96,7 @@ uthread-project/
 
 ## 4. 核心数据结构设计
 
-线程控制块 TCB 是本项目核心。建议设计为：
+线程控制块 TCB 是本项目核心。设计为：
 
 ```c
 typedef enum {
@@ -153,7 +153,7 @@ next_tid            下一个线程 ID
 
 ## 5. 对外 API 规划
 
-建议头文件 `include/uthread.h` 暴露以下接口：
+头文件 `include/uthread.h` 暴露以下接口：
 
 ```c
 int uthread_init(uthread_sched_policy_t policy);
@@ -240,8 +240,6 @@ T3 step 2
 - 使用 `SIGALRM`
 - 定时触发调度，实现抢占式 RR
 
-建议先不要把抢占式作为第一阶段目标，因为信号重入和上下文切换时机更容易出错。基础功能稳定后再做增强。
-
 ### 6.3 优先级调度
 
 优先级规则建议为：
@@ -267,7 +265,7 @@ T3 priority = 3
 运行顺序：T2 -> T3 -> T1
 ```
 
-报告中可以说明：优先级调度可能导致低优先级线程饥饿，后续可通过老化机制改进。
+优先级调度可能导致低优先级线程饥饿，后续可通过老化机制改进。
 
 ## 7. 分阶段实施步骤
 
@@ -279,7 +277,7 @@ T3 priority = 3
 - 写好 `Makefile`
 - 保证空项目可以编译
 
-建议命令：
+相关命令：
 
 ```bash
 mkdir -p include src tests docs
@@ -300,7 +298,6 @@ touch Makefile
 - 定义 TCB
 - 实现 ready queue 的入队、出队、删除、查找
 
-这一步可以先不做上下文切换，只写队列单元测试。
 
 ### 阶段三：实现线程初始化和创建
 
@@ -325,7 +322,6 @@ touch Makefile
 - 调度器选择下一个 ready 线程
 - 使用 `swapcontext` 完成上下文切换
 
-这一阶段跑通 `tests/test_basic.c`。
 
 ### 阶段五：实现 FIFO 和 RR
 
@@ -334,7 +330,7 @@ touch Makefile
 - FIFO：验证创建顺序和运行顺序
 - RR：验证多个线程轮流运行
 
-测试重点：
+测试：
 
 - 当前线程 yield 后是否重新进入队尾
 - 退出线程是否不会再次被调度
@@ -348,7 +344,7 @@ touch Makefile
 - 调度时选取最高优先级线程
 - 相同优先级按 FIFO 顺序执行
 
-测试重点：
+测试：
 
 - 创建顺序和优先级顺序不一致时，是否按优先级运行
 - 运行过程中修改优先级是否生效
@@ -361,7 +357,7 @@ touch Makefile
 - `uthread_delete`
 - `uthread_list`
 
-重点问题：
+重点：
 
 - join 时当前线程进入 `blocked`
 - 目标线程退出后唤醒等待线程
@@ -377,7 +373,7 @@ touch Makefile
 - README、设计文档、API 文档、课程报告草稿完整
 - 在腾讯云 Linux 上完整验证
 
-建议最终执行：
+最终执行：
 
 ```bash
 make clean
@@ -429,7 +425,7 @@ Low priority thread running
 
 ## 9. Makefile 目标建议
 
-建议支持：
+支持：
 
 ```text
 make                编译所有测试程序
@@ -456,13 +452,13 @@ gcc -Wall -Wextra -g -Iinclude \
 
 ### 10.1 上传项目
 
-可以使用 `scp`：
+使用 `scp`：
 
 ```bash
 scp -r uthread-project user@server_ip:/home/user/
 ```
 
-也可以使用 Git：
+或使用 Git：
 
 ```bash
 git clone <your-repository-url>
@@ -521,148 +517,3 @@ quit
 valgrind --leak-check=full ./test_basic
 valgrind --leak-check=full ./test_stress
 ```
-
-## 11. 课程报告结构建议
-
-报告建议包含：
-
-1. 课程设计题目与目的
-2. 需求分析
-3. 总体设计
-4. 数据结构设计
-5. 线程创建流程
-6. 上下文切换流程
-7. FIFO 调度算法
-8. RR 调度算法
-9. 优先级调度算法
-10. 线程状态维护
-11. 线程删除与资源回收
-12. 测试用例与结果
-13. 遇到的问题与解决方案
-14. 总结体会
-
-可以在报告中放入模块图：
-
-```text
-+-------------------+
-|   test programs   |
-+---------+---------+
-          |
-+---------v---------+
-|    uthread API    |
-+---------+---------+
-          |
-+---------v---------+
-| scheduler module  |
-+---------+---------+
-          |
-+---------v---------+
-| queue / timer     |
-+---------+---------+
-          |
-+---------v---------+
-|  Linux ucontext   |
-+-------------------+
-```
-
-## 12. 答辩重点
-
-重点准备以下问题：
-
-| 问题 | 回答方向 |
-|---|---|
-| 用户级线程和内核线程区别 | 用户级线程由线程库管理，内核不可见，切换快，但不能真正多核并行 |
-| 为什么使用 `ucontext` | 可以保存和恢复上下文，并为每个线程设置独立栈 |
-| TCB 的作用 | 保存线程 ID、状态、优先级、上下文、栈、创建时间等 |
-| `yield` 如何实现 | 保存当前上下文，当前线程入队，调度下一个线程，`swapcontext` 切换 |
-| FIFO、RR、Priority 区别 | FIFO 按创建顺序，RR 轮转，Priority 按优先级 |
-| `join` 如何实现 | 当前线程 blocked，目标线程退出后唤醒 |
-| 项目局限性 | 阻塞系统调用会阻塞整个进程，非抢占式依赖主动 yield，优先级可能饥饿 |
-
-## 13. 时间计划
-
-当前日期为 2026 年 5 月 20 日，提交截止日期为 2026 年 6 月 20 日。建议按下面节奏推进：
-
-| 时间 | 任务 |
-|---|---|
-| 5 月 20 日 - 5 月 23 日 | 完成工程结构、头文件、TCB、队列 |
-| 5 月 24 日 - 5 月 28 日 | 完成线程创建、yield、exit、基础调度 |
-| 5 月 29 日 - 6 月 2 日 | 完成 FIFO、RR、Priority |
-| 6 月 3 日 - 6 月 6 日 | 完成 join、delete、list、优先级修改 |
-| 6 月 7 日 - 6 月 10 日 | 完成所有测试和 Linux 服务器验证 |
-| 6 月 11 日 - 6 月 15 日 | 撰写课程报告和整理截图 |
-| 6 月 16 日 - 6 月 18 日 | 准备答辩材料 |
-| 6 月 19 日 | 最终检查、压缩、命名 |
-| 6 月 20 日 | 提交 |
-
-## 14. 最终提交清单
-
-代码：
-
-- `include/uthread.h`
-- `src/uthread.c`
-- `src/scheduler.c`
-- `src/queue.c`
-- `src/timer.c`，如果实现抢占式 RR
-- `tests/test_basic.c`
-- `tests/test_fifo.c`
-- `tests/test_rr.c`
-- `tests/test_priority.c`
-- `tests/test_join.c`
-- `tests/test_stress.c`
-- `Makefile`
-
-文档：
-
-- `README.md`
-- `docs/design.md`
-- `docs/api.md`
-- `docs/report.md`
-- 课程设计报告 PDF 或 Word
-- 测试截图
-- 答辩 PPT，如老师要求
-
-功能检查：
-
-- 可以创建线程
-- 可以主动让出 CPU
-- 可以退出线程
-- 可以删除线程
-- 可以查看线程信息
-- 可以设置线程优先级
-- 可以展示 ready、running、blocked 状态
-- FIFO 调度正确
-- RR 调度正确
-- 优先级调度正确
-- `make clean && make && make test` 通过
-
-压缩包命名按老师要求：
-
-```text
-学号-姓名.zip
-```
-
-## 15. 推荐执行顺序总结
-
-最稳妥的实现顺序：
-
-```text
-工程骨架
--> TCB 和队列
--> uthread_init
--> uthread_create
--> uthread_yield
--> uthread_exit
--> FIFO
--> RR
--> Priority
--> uthread_set_priority
--> uthread_list
--> uthread_join
--> uthread_delete
--> 测试程序
--> Linux 验证
--> 课程报告
-```
-
-先完成稳定的协作式用户级线程库，再考虑抢占式 RR。这样能覆盖课程评分要求，同时降低调试风险。
