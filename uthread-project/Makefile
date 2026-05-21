@@ -27,11 +27,13 @@ build/test_%: tests/test_%.c $(LIB_OBJ) | build
 
 # ── Run all tests ─────────────────────────────────────────────────────────
 test: all
-	@for t in $(TEST_BINS); do \
+	@failed=0; \
+	for t in $(TEST_BINS); do \
 		echo ""; \
 		echo "=== $$t ==="; \
-		./$$t || true; \
-	done
+		./$$t || failed=1; \
+	done; \
+	exit $$failed
 
 # ── Run individual tests ──────────────────────────────────────────────────
 test_basic:    build/test_basic    ; @./build/test_basic
