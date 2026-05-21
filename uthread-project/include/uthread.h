@@ -85,4 +85,18 @@ void uthread_list(void);
    Called by yield, exit, join, and start. */
 void schedule(void);
 
+/* ── Internal queue API (intrusive singly-linked list via uthread_t.next) ── */
+
+/* Append t to the tail of the queue. */
+void       queue_enqueue(uthread_t **head, uthread_t **tail, uthread_t *t);
+
+/* Remove and return the head node; returns NULL if the queue is empty. */
+uthread_t *queue_dequeue(uthread_t **head, uthread_t **tail);
+
+/* Find the node with the given tid; returns NULL if not found. */
+uthread_t *queue_find(uthread_t *head, int tid);
+
+/* Remove the node with the given tid and return it; returns NULL if not found. */
+uthread_t *queue_remove(uthread_t **head, uthread_t **tail, int tid);
+
 #endif /* UTHREAD_H */

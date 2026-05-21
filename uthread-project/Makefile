@@ -4,11 +4,11 @@ CFLAGS  = -Wall -Wextra -g -Iinclude -D_XOPEN_SOURCE
 LIB_SRC = src/uthread.c src/scheduler.c src/queue.c
 LIB_OBJ = $(patsubst src/%.c, build/%.o, $(LIB_SRC))
 
-TESTS     = test_basic test_fifo test_rr test_priority test_join test_stress
+TESTS     = test_queue test_basic test_fifo test_rr test_priority test_join test_stress
 TEST_BINS = $(addprefix build/, $(TESTS))
 
 .PHONY: all test clean \
-        test_basic test_fifo test_rr test_priority test_join test_stress
+        test_queue test_basic test_fifo test_rr test_priority test_join test_stress
 
 # ── Default target ────────────────────────────────────────────────────────
 all: $(TEST_BINS)
@@ -36,6 +36,7 @@ test: all
 	exit $$failed
 
 # ── Run individual tests ──────────────────────────────────────────────────
+test_queue:    build/test_queue    ; @./build/test_queue
 test_basic:    build/test_basic    ; @./build/test_basic
 test_fifo:     build/test_fifo     ; @./build/test_fifo
 test_rr:       build/test_rr       ; @./build/test_rr
