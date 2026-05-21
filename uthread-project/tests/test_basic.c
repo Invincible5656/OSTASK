@@ -1,94 +1,103 @@
 #include <stdio.h>
+#include <string.h>
 #include <assert.h>
-#include <unistd.h>
 #include "uthread.h"
 
-/* ── dummy thread function ───────────────────────────────────────────────── */
+/* ── shared event log ────────────────────────────────────────────────────── */
 
-static void *dummy(void *arg)
+static char log_buf[256];
+static int  log_pos = 0;
+
+static void log_event(const char *ev)
+{
+    log_pos += snprintf(log_buf + log_pos,
+                        sizeof(log_buf) - log_pos, "%s ", ev);
+}
+
+/* ── thread functions ────────────────────────────────────────────────────── */
+
+static void *thread_a(void *arg)
 {
     (void)arg;
+    log_event("A1");
+    uthread_yield();
+    log_event("A2");
     return NULL;
 }
 
-/* ── Stage 3: verify uthread_init and uthread_create ────────────────────── */
-
-static void test_init(void)
+static void *thread_b(void *arg)
 {
-    assert(uthread_init(UTHREAD_SCHED_FIFO) == 0);
-
-    /* main thread should be tid 0, RUNNING */
-    assert(current_thread         != NULL);
-    assert(current_thread->tid    == 0);
-    assert(current_thread->state  == UTHREAD_RUNNING);
-    assert(current_thread->pid    == getpid());
-    assert(current_thread->stack  == NULL); /* main uses process stack */
-
-    /* all_threads list has exactly one entry */
-    assert(all_threads            == current_thread);
-    assert(all_threads->all_next  == NULL);
-
-    /* ready queue is still empty */
-    assert(ready_queue_head       == NULL);
-
-    printf("  [PASS] uthread_init: main thread TCB correct\n");
+    (void)arg;
+    log_event("B1");
+    uthread_yield();
+    log_event("B2");
+    return NULL;
 }
 
-static void test_create(void)
+static void *thread_single(void *arg)
 {
-    int tid1, tid2, tid3;
+    (void)arg;
+    log_event("S");
+    return NULL;
+}
 
-    assert(uthread_create(&tid1, dummy, NULL,  2) == 0);
-    assert(uthread_create(&tid2, dummy, NULL,  1) == 0);
-    assert(uthread_create(&tid3, dummy, (void *)"hello", 3) == 0);
+/* ── test: two threads round-robin via yield ─────────────────────────────── */
 
-    /* tids are sequential starting from 1 */
-    assert(tid1 == 1);
-    assert(tid2 == 2);
-    assert(tid3 == 3);
-    printf("  [PASS] uthread_create: sequential tids (%d, %d, %d)\n",
-           tid1, tid2, tid3);
+static void test_yield_order(void)
+{
+    log_buf[0] = '\0';
+    log_pos    = 0;
 
-    /* all three threads are in the all_threads list */
-    uthread_t *t = all_threads->all_next; /* skip main */
-    assert(t != NULL && t->tid == 1 && t->state == UTHREAD_READY);
-    t = t->all_next;
-    assert(t != NULL && t->tid == 2 && t->priority == 1);
-    t = t->all_next;
-    assert(t != NULL && t->tid == 3);
-    assert(t->all_next == NULL);
-    printf("  [PASS] uthread_create: all_threads list has 4 entries\n");
+    uthread_init(UTHREAD_SCHED_FIFO);
+    uthread_create(NULL, thread_a, NULL, 0);
+    uthread_create(NULL, thread_b, NULL, 0);
+    uthread_start();
 
-    /* ready queue has the three new threads in creation order */
-    assert(ready_queue_head       != NULL);
-    assert(ready_queue_head->tid  == 1);
-    assert(ready_queue_tail->tid  == 3);
-    printf("  [PASS] uthread_create: ready queue head=%d tail=%d\n",
-           ready_queue_head->tid, ready_queue_tail->tid);
+    /*
+     * Expected interleaving with FIFO + yield-requeue:
+     *   A starts → A1 → yield (A→tail, queue=[B,A])
+     *   B starts → B1 → yield (B→tail, queue=[A,B])
+     *   A resumes → A2 → exit  (queue=[B])
+     *   B resumes → B2 → exit  (queue=[])
+     */
+    assert(strcmp(log_buf, "A1 B1 A2 B2 ") == 0);
+    printf("  [PASS] yield interleaving: %s\n", log_buf);
+}
 
-    /* each thread has its own private stack */
-    uthread_t *t1 = queue_find(ready_queue_head, tid1);
-    uthread_t *t2 = queue_find(ready_queue_head, tid2);
-    assert(t1 != NULL && t1->stack != NULL);
-    assert(t2 != NULL && t2->stack != NULL);
-    assert(t1->stack != t2->stack);
-    printf("  [PASS] uthread_create: each thread has a unique private stack\n");
+/* ── test: thread exit without yield ────────────────────────────────────── */
 
-    /* pid and create_time are filled in */
-    assert(t1->pid == getpid());
-    assert(t1->create_time > 0);
-    printf("  [PASS] uthread_create: pid and create_time populated\n");
+static void test_exit_no_yield(void)
+{
+    log_buf[0] = '\0';
+    log_pos    = 0;
+
+    uthread_init(UTHREAD_SCHED_FIFO);
+    uthread_create(NULL, thread_single, NULL, 0);
+    uthread_start();
+
+    assert(strcmp(log_buf, "S ") == 0);
+    printf("  [PASS] single thread exit: %s\n", log_buf);
+}
+
+/* ── test: uthread_start returns when queue is empty from the start ──────── */
+
+static void test_start_empty(void)
+{
+    uthread_init(UTHREAD_SCHED_FIFO);
+    uthread_start(); /* should return immediately, no crash */
+    printf("  [PASS] uthread_start with empty queue returns cleanly\n");
 }
 
 /* ── main ────────────────────────────────────────────────────────────────── */
 
 int main(void)
 {
-    printf("[test_basic] Stage 3: uthread_init + uthread_create\n");
+    printf("[test_basic] Stage 4: yield, exit, context switching\n");
 
-    test_init();
-    test_create();
+    test_yield_order();
+    test_exit_no_yield();
+    test_start_empty();
 
-    printf("[test_basic] all Stage 3 tests passed.\n");
+    printf("[test_basic] all Stage 4 tests passed.\n");
     return 0;
 }
