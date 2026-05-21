@@ -1,6 +1,8 @@
 #include "uthread.h"
 
 #include <stdint.h>
+
+extern int sched_done; /* defined in scheduler.c */
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -105,26 +107,56 @@ int uthread_create(int *tid,
     return 0;
 }
 
-/* ── uthread_yield (Stage 4) ─────────────────────────────────────────────── */
+/* ── uthread_yield ───────────────────────────────────────────────────────── */
 
 void uthread_yield(void)
 {
-    /* TODO Stage 4 */
+    current_thread->state = UTHREAD_READY;
+    queue_enqueue(&ready_queue_head, &ready_queue_tail, current_thread);
+    schedule();
+    /* Execution resumes here when this thread is next dispatched. */
 }
 
-/* ── uthread_exit (Stage 4) ──────────────────────────────────────────────── */
+/* ── uthread_exit ────────────────────────────────────────────────────────── */
 
 void uthread_exit(void *retval)
 {
-    (void)retval;
-    /* TODO Stage 4 */
+    current_thread->retval = retval;
+    current_thread->state  = UTHREAD_EXITED;
+
+    /* Wake any thread blocked in uthread_join() on us (Stage 7). */
+    if (current_thread->waiting_thread != NULL) {
+        uthread_t *waiter = current_thread->waiting_thread;
+        waiter->state = UTHREAD_READY;
+        queue_enqueue(&ready_queue_head, &ready_queue_tail, waiter);
+        current_thread->waiting_thread = NULL;
+    }
+
+    schedule();
+    /* Never reached: an exited thread is never re-dispatched. */
 }
 
-/* ── uthread_start (Stage 4) ─────────────────────────────────────────────── */
+/* ── uthread_start ───────────────────────────────────────────────────────── */
 
+/*
+ * Save the main thread's context here.  When all user threads finish,
+ * schedule() sets sched_done=1 and swaps back to this exact point.
+ * The flag check then causes uthread_start() to return to the caller.
+ */
 void uthread_start(void)
 {
-    /* TODO Stage 4 */
+    sched_done = 0;
+
+    /*
+     * getcontext saves the "resume here" address.
+     * After schedule() swaps back, we land right after this call,
+     * check sched_done, and return.
+     */
+    getcontext(&all_threads->context);
+    if (sched_done)
+        return;
+
+    schedule();
 }
 
 /* ── uthread_join (Stage 7) ──────────────────────────────────────────────── */
