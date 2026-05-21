@@ -1,5 +1,5 @@
 CC      = gcc
-CFLAGS  = -Wall -Wextra -g -Iinclude -D_XOPEN_SOURCE
+CFLAGS  = -Wall -Wextra -g -Iinclude -D_XOPEN_SOURCE -Wno-deprecated-declarations
 
 LIB_SRC = src/uthread.c src/scheduler.c src/queue.c
 LIB_OBJ = $(patsubst src/%.c, build/%.o, $(LIB_SRC))

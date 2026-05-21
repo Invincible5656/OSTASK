@@ -35,10 +35,22 @@ typedef struct uthread {
     uthread_state_t      state;
     ucontext_t           context;
     void                *stack;          /* privately allocated stack */
+    void                *(*func)(void *);/* thread entry point */
+    void                *arg;            /* argument passed to func */
     void                *retval;         /* value passed to uthread_exit */
     struct uthread      *waiting_thread; /* thread blocked on uthread_join */
-    struct uthread      *next;           /* intrusive linked-list pointer */
+    struct uthread      *next;           /* ready-queue link */
+    struct uthread      *all_next;       /* global all-threads list link */
 } uthread_t;
+
+/* ── Global state (definitions in uthread.c / scheduler.c) ─────────────── */
+
+extern uthread_t            *current_thread;
+extern uthread_t            *all_threads;
+extern uthread_sched_policy_t sched_policy;
+extern int                   next_tid;
+extern uthread_t            *ready_queue_head;
+extern uthread_t            *ready_queue_tail;
 
 /* ── Public API ─────────────────────────────────────────────────────────── */
 
