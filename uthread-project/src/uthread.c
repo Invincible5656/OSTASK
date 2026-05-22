@@ -181,9 +181,13 @@ int uthread_delete(int tid)
 
 int uthread_set_priority(int tid, int priority)
 {
-    (void)tid; (void)priority;
-    /* TODO Stage 6 */
-    return -1;
+    for (uthread_t *t = all_threads; t != NULL; t = t->all_next) {
+        if (t->tid == tid) {
+            t->priority = priority;
+            return 0;
+        }
+    }
+    return -1; /* tid not found */
 }
 
 /* ── uthread_list (Stage 7) ──────────────────────────────────────────────── */
