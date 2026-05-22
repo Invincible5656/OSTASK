@@ -177,6 +177,10 @@ int uthread_join(int tid, void **retval)
         return 0;
     }
 
+    /* Reject a second concurrent joiner on the same target. */
+    if (target->waiting_thread != NULL)
+        return -1;
+
     /* Block until target exits.  uthread_exit() will re-enqueue us. */
     target->waiting_thread = current_thread;
     current_thread->state  = UTHREAD_BLOCKED;
@@ -201,6 +205,8 @@ int uthread_delete(int tid)
     if (target == NULL)                              return -1;
     if (target->state == UTHREAD_RUNNING)            return -1;
     if (target->state == UTHREAD_BLOCKED)            return -1;
+    /* Prevent use-after-free: another thread is blocked waiting on this one. */
+    if (target->waiting_thread != NULL)              return -1;
 
     /* Remove from ready queue if present. */
     if (target->state == UTHREAD_READY)
