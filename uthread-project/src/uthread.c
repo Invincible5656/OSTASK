@@ -159,22 +159,68 @@ void uthread_start(void)
     schedule();
 }
 
-/* ── uthread_join (Stage 7) ──────────────────────────────────────────────── */
+/* ── uthread_join ────────────────────────────────────────────────────────── */
 
 int uthread_join(int tid, void **retval)
 {
-    (void)tid; (void)retval;
-    /* TODO Stage 7 */
-    return -1;
+    /* Find target thread. */
+    uthread_t *target = NULL;
+    for (uthread_t *t = all_threads; t != NULL; t = t->all_next) {
+        if (t->tid == tid) { target = t; break; }
+    }
+    if (target == NULL || target == current_thread)
+        return -1;
+
+    /* If already exited, collect retval immediately. */
+    if (target->state == UTHREAD_EXITED) {
+        if (retval != NULL) *retval = target->retval;
+        return 0;
+    }
+
+    /* Reject a second concurrent joiner on the same target. */
+    if (target->waiting_thread != NULL)
+        return -1;
+
+    /* Block until target exits.  uthread_exit() will re-enqueue us. */
+    target->waiting_thread = current_thread;
+    current_thread->state  = UTHREAD_BLOCKED;
+    schedule();
+
+    /* Resumed: target is now EXITED. */
+    if (retval != NULL) *retval = target->retval;
+    return 0;
 }
 
-/* ── uthread_delete (Stage 7) ────────────────────────────────────────────── */
+/* ── uthread_delete ──────────────────────────────────────────────────────── */
 
 int uthread_delete(int tid)
 {
-    (void)tid;
-    /* TODO Stage 7 */
-    return -1;
+    /* Find target and its predecessor in the all_threads list. */
+    uthread_t *prev   = NULL;
+    uthread_t *target = NULL;
+    for (uthread_t *t = all_threads; t != NULL; t = t->all_next) {
+        if (t->tid == tid) { target = t; break; }
+        prev = t;
+    }
+    if (target == NULL)                              return -1;
+    if (target->state == UTHREAD_RUNNING)            return -1;
+    if (target->state == UTHREAD_BLOCKED)            return -1;
+    /* Prevent use-after-free: another thread is blocked waiting on this one. */
+    if (target->waiting_thread != NULL)              return -1;
+
+    /* Remove from ready queue if present. */
+    if (target->state == UTHREAD_READY)
+        queue_remove(&ready_queue_head, &ready_queue_tail, tid);
+
+    /* Unlink from all_threads list. */
+    if (prev != NULL)
+        prev->all_next = target->all_next;
+    else
+        all_threads = target->all_next;
+
+    free(target->stack);
+    free(target);
+    return 0;
 }
 
 /* ── uthread_set_priority (Stage 6) ─────────────────────────────────────── */
@@ -190,9 +236,25 @@ int uthread_set_priority(int tid, int priority)
     return -1; /* tid not found */
 }
 
-/* ── uthread_list (Stage 7) ──────────────────────────────────────────────── */
+/* ── uthread_list ────────────────────────────────────────────────────────── */
 
 void uthread_list(void)
 {
-    /* TODO Stage 7 */
+    static const char *state_name[] = {
+        "READY", "RUNNING", "BLOCKED", "EXITED"
+    };
+
+    printf("%-5s %-8s %-10s %-10s %s\n",
+           "TID", "PID", "PRIORITY", "STATE", "CREATED");
+    printf("%-5s %-8s %-10s %-10s %s\n",
+           "----", "-------", "--------", "---------", "-------------------");
+
+    for (uthread_t *t = all_threads; t != NULL; t = t->all_next) {
+        char tbuf[32];
+        struct tm *tm_info = localtime(&t->create_time);
+        strftime(tbuf, sizeof(tbuf), "%Y-%m-%d %H:%M:%S", tm_info);
+        printf("%-5d %-8d %-10d %-10s %s\n",
+               t->tid, (int)t->pid, t->priority,
+               state_name[t->state], tbuf);
+    }
 }
