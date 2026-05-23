@@ -2,9 +2,9 @@
 #include <assert.h>
 #include "uthread.h"
 
-#define N_THREADS 32
+/* 压力测试 */
 
-/* ── stress: N threads each yield once, then exit ───────────────────────── */
+#define N_THREADS 32
 
 static int run_count = 0;
 
@@ -25,10 +25,8 @@ static void test_many_threads(void)
     uthread_start();
 
     assert(run_count == N_THREADS);
-    printf("  [PASS] %d threads ran and exited cleanly\n", N_THREADS);
+    printf("  [PASS] %d 个线程全部正常运行并退出\n", N_THREADS);
 }
-
-/* ── stress: create, delete half, run the rest ───────────────────────────── */
 
 static int del_run_count = 0;
 
@@ -48,7 +46,6 @@ static void test_create_delete(void)
     for (int i = 0; i < N_THREADS; i++)
         uthread_create(&tids[i], del_worker, NULL, 0);
 
-    /* Delete every other thread before scheduling. */
     int deleted = 0;
     for (int i = 0; i < N_THREADS; i += 2) {
         assert(uthread_delete(tids[i]) == 0);
@@ -58,18 +55,14 @@ static void test_create_delete(void)
     uthread_start();
 
     assert(del_run_count == N_THREADS - deleted);
-    printf("  [PASS] deleted %d / %d threads; %d ran correctly\n",
+    printf("  [PASS] 删除 %d / %d 个线程，%d 个正常运行\n",
            deleted, N_THREADS, del_run_count);
 }
-
-/* ── stress: FIFO / RR / Priority all complete without crash ─────────────── */
 
 static void test_all_policies(void)
 {
     uthread_sched_policy_t policies[] = {
-        UTHREAD_SCHED_FIFO,
-        UTHREAD_SCHED_RR,
-        UTHREAD_SCHED_PRIORITY
+        UTHREAD_SCHED_FIFO, UTHREAD_SCHED_RR, UTHREAD_SCHED_PRIORITY
     };
     const char *names[] = { "FIFO", "RR", "Priority" };
 
@@ -80,20 +73,18 @@ static void test_all_policies(void)
             uthread_create(NULL, stress_worker, NULL, i % 4);
         uthread_start();
         assert(run_count == 16);
-        printf("  [PASS] 16 threads under %s scheduling\n", names[p]);
+        printf("  [PASS] %s 策略下 16 线程全部完成\n", names[p]);
     }
 }
 
-/* ── main ────────────────────────────────────────────────────────────────── */
-
 int main(void)
 {
-    printf("[test_stress] stress tests\n");
+    printf("[test_stress] 压力测试\n");
 
     test_many_threads();
     test_create_delete();
     test_all_policies();
 
-    printf("[test_stress] all tests passed.\n");
+    printf("[test_stress] 全部通过\n");
     return 0;
 }
