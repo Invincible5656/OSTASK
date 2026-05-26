@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include "uthread.h"    
 
 /* TID 跨线程传递用全局变量（与 test_join.c 同一惯例） */
