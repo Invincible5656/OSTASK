@@ -7,11 +7,14 @@ LIB_OBJ = $(patsubst src/%.c, build/%.o, $(LIB_SRC))
 TESTS     = test_queue test_basic test_fifo test_rr test_priority test_join test_stress
 TEST_BINS = $(addprefix build/, $(TESTS))
 
-.PHONY: all test clean \
+DEMOS     = demo_uthread
+DEMO_BINS = $(addprefix build/, $(DEMOS))
+
+.PHONY: all test clean demo \
         test_queue test_basic test_fifo test_rr test_priority test_join test_stress
 
 # ── Default target ────────────────────────────────────────────────────────
-all: $(TEST_BINS)
+all: $(TEST_BINS) $(DEMO_BINS)
 
 # ── Build directory ───────────────────────────────────────────────────────
 build:
@@ -23,6 +26,10 @@ build/%.o: src/%.c | build
 
 # ── Test binaries (each links the full library) ───────────────────────────
 build/test_%: tests/test_%.c $(LIB_OBJ) | build
+	$(CC) $(CFLAGS) $^ -o $@
+
+# ── Demo binaries ─────────────────────────────────────────────────────────
+build/demo_%: tests/demo_%.c $(LIB_OBJ) | build
 	$(CC) $(CFLAGS) $^ -o $@
 
 # ── Run all tests ─────────────────────────────────────────────────────────
@@ -43,6 +50,10 @@ test_rr:       build/test_rr       ; @./build/test_rr
 test_priority: build/test_priority ; @./build/test_priority
 test_join:     build/test_join     ; @./build/test_join
 test_stress:   build/test_stress   ; @./build/test_stress
+
+# ── Run demo ─────────────────────────────────────────────────────────────
+demo: build/demo_uthread
+	@./build/demo_uthread
 
 # ── Clean ─────────────────────────────────────────────────────────────────
 clean:
