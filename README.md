@@ -72,7 +72,8 @@ uthread-project/
 │   ├── test_rr.c
 │   ├── test_priority.c
 │   ├── test_join.c
-│   └── test_stress.c
+│   ├── test_stress.c
+│   └── demo_uthread.c
 ├── docs/
 │   ├── design.md
 │   ├── api.md
@@ -90,7 +91,7 @@ uthread-project/
 | `src/scheduler.c` | FIFO、RR、Priority 调度逻辑 |
 | `src/queue.c` | 线程队列入队、出队、查找、删除 |
 | `src/timer.c` | 可选：`setitimer` 抢占式 RR |
-| `tests/` | 各功能测试程序 |
+| `tests/` | 各功能测试程序及交互式演示程序 |
 | `docs/` | 设计文档、API 文档、报告草稿 |
 | `Makefile` | 编译、运行、清理 |
 
@@ -428,7 +429,7 @@ Low priority thread running
 支持：
 
 ```text
-make                编译所有测试程序
+make                编译所有测试程序和演示程序
 make test           运行所有测试
 make test_basic     运行基础测试
 make test_fifo      运行 FIFO 测试
@@ -436,6 +437,7 @@ make test_rr        运行 RR 测试
 make test_priority  运行优先级测试
 make test_join      运行 join 测试
 make test_stress    运行压力测试
+make demo           编译并启动交互式演示程序
 make clean          清理构建文件
 ```
 
@@ -517,3 +519,54 @@ quit
 valgrind --leak-check=full ./test_basic
 valgrind --leak-check=full ./test_stress
 ```
+
+## 11. 交互式演示程序
+
+`tests/demo_uthread.c` 是一个菜单驱动的演示程序，可一站式展示线程库的全部核心功能，适合课程汇报和验收演示。
+
+### 11.1 启动方式
+
+```bash
+cd uthread-project
+make demo
+```
+
+或分步执行：
+
+```bash
+make build/demo_uthread
+./build/demo_uthread
+```
+
+### 11.2 菜单选项
+
+```text
+====================================
+  用户级线程库实验演示系统
+====================================
+  1. FIFO 调度演示
+  2. RR 调度演示（含 FIFO 对比）
+  3. 优先级调度演示
+  4. 线程信息查看与管理
+  5. join 阻塞与唤醒演示
+  6. delete 安全删除演示
+  0. 退出
+====================================
+```
+
+### 11.3 各选项说明
+
+| 选项 | 演示内容 | 关键观察点 |
+|---|---|---|
+| 1 FIFO | 创建 T1→T2→T3，无 yield | 执行顺序严格按入队顺序 |
+| 2 RR 对比 | 同组线程先跑 FIFO 再跑 RR | FIFO 串行完成 vs RR 每步交替 |
+| 3 优先级 | T1(p=5) T2(p=1) T3(p=3) | 输出顺序 T2→T3→T1，priority 值来自运行时 TCB |
+| 4 线程管理 | 管理线程内调用 `uthread_list`，再改优先级、删线程 | 动态快照展示 RUNNING/READY 状态 |
+| 5 join | Joiner 先运行并阻塞，Worker 退出后唤醒 | 返回值 42 由 Joiner 从 TCB 读取后打印 |
+| 6 delete | 调度前删除 T1 | 只有 T2 被调度执行，T1 不出现 |
+
+### 11.4 注意事项
+
+- 演示程序每次选择均调用 `uthread_init` 重新初始化，可重复选择同一选项多次运行
+- TID 跨演示累积（不归零），属正常现象
+- 演示 4 中线程列表出现两行 `RUNNING`：TID 0 为主线程上下文（`uthread_start` 保存上下文后未改变状态），当前执行线程为管理线程，两者均显示 RUNNING 是库的设计特征
